@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/face-guaard/',
+  base: '/face-guard/',
   // Ensure MediaPipe WASM files are served correctly
   optimizeDeps: {
     exclude: ['@mediapipe/tasks-vision'],
