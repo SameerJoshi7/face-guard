@@ -1,63 +1,89 @@
-# 🔒 FaceGuard — Home Security Face Detection System
+# 🔒 FaceGuard — Session-Based Person Detection Security System
 
-AI-powered home security that detects faces in real-time using your camera and sends instant photo alerts to your mobile device.
+AI-powered home security that detects humans from any angle/distance, starts an intrusion session, captures snapshots at regular intervals, and delivers continuous photo alerts to your phone.
 
-**Zero API keys required.** Runs 100% in-browser.
-
----
-
-## Features
-
-- 📹 **Live camera feed** with AI bounding box overlay
-- 📏 **Proximity detection** — alerts when face is ≤1 foot from camera
-- 🔊 **Audio beep alarm** — synthesized via Web Audio API
-- 📸 **Face snapshot** — captured and sent with every alert
-- 📱 **Mobile push notifications** via [ntfy.sh](https://ntfy.sh) (free, no account)
-- 🔒 **Armed / Disarmed toggle** with cooldown control
-- 📋 **Alert log** — persisted across sessions with face thumbnails
-- 📦 **PWA** — installable on Android as a home screen app
+**Zero API keys required.** Runs 100% in-browser using WebAssembly.
 
 ---
 
-## API Keys Required?
+## Key Features
 
-| Feature | Requires API Key? |
-|---------|-----------------|
-| Face Detection (MediaPipe) | ❌ No |
-| Camera (getUserMedia) | ❌ Browser permission only |
-| Audio Alarm | ❌ No |
-| Mobile Push Alerts (ntfy.sh) | ❌ No |
-| PWA install on Android | ❌ No |
+- 📹 **Intelligent Person Detection** — Uses MediaPipe Object Detector to detect humans from front, side, or back views at any distance.
+- ⏱️ **Session-Based Monitoring** — Triggers a security session on entry, captures updates every 10 seconds while the person remains, and sends a summary report when they exit.
+- 📱 **Cross-Platform Mobile Alerts** — Delivers real-time notifications with attachments to the **ntfy app** on both iOS and Android (completely free, no account needed).
+- 🔑 **Deterministic ID Generation** — Generates your unique, private notification channel from your Name + PIN. Recreate the same channel on any device.
+- 💾 **High-Capacity IndexedDB Storage** — Stores raw binary snapshot blobs directly in your browser's database. No storage limits or base64 overhead.
+- 🔊 **Audio Alarm Synthesis** — Plays distinct warning beeps (intrusion start, photo updates, session clear) using the browser's Web Audio API.
+- 🎨 **Premium CCTV Dark Aesthetic** — Monospaced status dashboard, glowing overlay corners, live indicators, and screen-flash warning effects.
+- 🚀 **Automated CI/CD Deploys** — Equipped with GitHub Actions to build and deploy to GitHub Pages automatically on push.
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+| :--- | :--- |
+| **Object Detection** | MediaPipe Tasks Vision (EfficientDet Lite0 WASM) |
+| **Camera Feed** | HTML5 `getUserMedia` API |
+| **Local Database** | Browser IndexedDB Store (`FaceGuardDB`) |
+| **Push Gateway** | `ntfy.sh` API Relay (Safe PUT attachments) |
+| **Audio Alarm** | Web Audio API (Square & Sine wave synthesizers) |
+| **PWA Support** | Service Worker + Web App Manifest (`manifest.json`) |
+| **Bundler / Server** | Vite 5 + ES Modules |
+| **Deployment** | GitHub Actions Workflow |
 
 ---
 
 ## Getting Started
 
-### 1. Install & Run
-
-```bash
+### 1. Run Locally
+Clone the repository and start the development server:
+```powershell
 npm install
 npm run dev
 ```
+Open **http://localhost:5173** in your browser.
 
-Open **http://localhost:5173** in Chrome or Edge.
+### 2. Set Up Your Security ID
+1. On first launch, the glowing Welcome Modal will ask for your **Name**, **Location** (e.g. `Front Door`), and a **PIN**.
+2. FaceGuard cryptographically hashes these locally (`SHA-256`) to derive a private, deterministic channel ID (e.g. `fg-3a7b9c2d1e4f`).
+3. Tap **Activate FaceGuard** to save your profile. The same Name + PIN combination will always recreate the exact same channel ID on any device.
 
-### 2. Set Up Mobile Alerts (Phone Notifications)
+### 3. Subscribe on Your Phone
+1. Install the **ntfy** app on your phone:
+   - [App Store (iOS)](https://apps.apple.com/us/app/ntfy/id1625396347)
+   - [Play Store (Android)](https://play.google.com/store/apps/details?id=io.heckel.ntfy)
+2. Open the ntfy app, tap **+** (Subscribe to topic), enter your generated channel ID (e.g. `fg-3a7b9c2d1e4f`), and subscribe.
+3. Tap **Test Notification** in FaceGuard to verify the connection.
 
-1. Install the **ntfy** app on your Android phone ([Play Store](https://play.google.com/store/apps/details?id=io.heckel.ntfy))
-2. In the FaceGuard app, note the generated **ntfy Topic** (e.g. `faceguard-abc123`)
-3. In the ntfy Android app, tap **+** and subscribe to your topic
-4. Click **Test Notification** in FaceGuard to verify it works
-5. ✅ You'll now receive photo alerts on your phone whenever a face is detected!
+---
 
-### 3. Arm the System
+## How It Works
 
-- Click **ARMED** button to arm/disarm
-- Use **Sensitivity** slider to adjust trigger distance:
-  - **Low** = only triggers at very close range (< 0.5 ft)
-  - **Medium** = triggers at ≈ 1 foot (default)
-  - **High** = triggers from ≈ 2 feet away
-- Use **Alert Cooldown** to control how often alerts fire
+### Intrusion Session Lifecycle
+```mermaid
+graph TD
+    A[Scanning for humans] -->|Person Enters Frame| B(Session Starts)
+    B --> C[Play Loud Alarm & Send ntfy 🚨 Alert + Photo #1]
+    C --> D{Person Still Present?}
+    D -->|Yes - Every 10s| E[Play Soft Chirp & Send ntfy 📸 Update + Photo #N]
+    E --> D
+    D -->|No - 5s Grace Period Exceeded| F(Session Ends)
+    F --> G[Play Clear Chirp & Send ntfy ✅ Text Summary]
+    G --> A
+```
+
+### Proximity & Sensitivity
+FaceGuard maps the person's bounding box area relative to the camera frame to classify proximity:
+*   `ratio > 0.45` → `very-close` (< 1.5 ft)
+*   `ratio > 0.25` → `close` (1.5 - 3 ft)
+*   `ratio > 0.12` → `medium` (3 - 6 ft)
+*   `ratio <= 0.12` → `far` (> 6 ft)
+
+Adjusting the **Sensitivity** slider sets the trigger range for starting a session:
+*   **Low (1)**: Only triggers if the person is `close` or `very-close`.
+*   **Medium (2)**: Triggers when the person is `medium`, `close`, or `very-close` (Default).
+*   **High (3)**: Triggers on any detection (`far` onwards).
 
 ---
 
@@ -65,66 +91,26 @@ Open **http://localhost:5173** in Chrome or Edge.
 
 ```
 face-guard/
-├── index.html                  # App shell
-├── manifest.json               # PWA manifest
-├── service-worker.js           # Offline caching + push handler
-├── vite.config.js
-├── package.json
-│
+├── .github/workflows/
+│   └── deploy.yml              # GitHub Actions deploy script
+├── public/
+│   └── icons/                  # PWA icons
 ├── src/
-│   ├── main.js                 # Bootstrap
-│   ├── App.js                  # Root orchestrator
-│   ├── config.js               # All constants
-│   ├── style.css               # Design system
-│   │
-│   └── modules/
-│       ├── CameraManager.js    # Camera stream management
-│       ├── FaceDetector.js     # MediaPipe face detection
-│       ├── CanvasOverlay.js    # Bounding box rendering
-│       ├── AudioManager.js     # Web Audio beep synthesis
-│       ├── AlertManager.js     # Cooldown + snapshot capture
-│       ├── Notifier.js         # ntfy.sh + browser notifications
-│       └── StorageManager.js   # localStorage alert log
-│
-└── public/
-    └── icons/                  # PWA icons
+│   ├── modules/
+│   │   ├── AlertManager.js     # Session state machine & snapshots
+│   │   ├── AudioManager.js     # Sound effects synthesizer
+│   │   ├── CameraManager.js    # Stream lifecycle management
+│   │   ├── CanvasOverlay.js    # CCTV bounding box rendering
+│   │   ├── IdentityManager.js  # Deterministic SHA-256 topic generation
+│   │   ├── Notifier.js         # ntfy.sh & browser alerts
+│   │   ├── PersonDetector.js   # MediaPipe Object Detector
+│   │   └── StorageManager.js   # IndexedDB database management
+│   ├── App.js                  # Main app orchestrator
+│   ├── config.js               # Central config parameters
+│   ├── main.js                 # App bootstrapper
+│   └── style.css               # CCTV theme stylesheets
+├── index.html                  # HTML Shell
+├── manifest.json               # PWA config
+├── service-worker.js           # Offline service worker
+└── vite.config.js              # Vite config with base path
 ```
-
----
-
-## How Distance Is Estimated
-
-No depth sensor is needed. The system estimates proximity by measuring how large the detected face is relative to the frame:
-
-```
-proximity_ratio = face_width / frame_width
-
-ratio > 0.35  →  Very Close  (< 0.5 ft)   — RED ALERT
-ratio > 0.22  →  Close       (≈ 1 ft)     — RED ALERT  ← default trigger
-ratio > 0.10  →  Medium      (1–3 ft)     — AMBER
-ratio ≤ 0.10  →  Far         (> 3 ft)     — GREEN
-```
-
-Adjust via the **Sensitivity** slider in the UI.
-
----
-
-## Install as Android App (PWA)
-
-1. Open the app in Chrome on your Android phone (must be on same WiFi as laptop, or deployed)
-2. Tap the browser menu → **Add to Home Screen**
-3. Launch from home screen — it runs like a native app with full camera + notification access
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Face Detection | MediaPipe BlazeFace (short-range, in-browser WASM) |
-| Camera | Web `getUserMedia` API |
-| Audio | Web Audio API (synthesized tones) |
-| Push Alerts | ntfy.sh HTTP relay — no account needed |
-| Browser Alerts | Web Notifications API |
-| PWA | Service Worker + Web App Manifest |
-| Build Tool | Vite 5 |
