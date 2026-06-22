@@ -4,7 +4,7 @@
  */
 
 const CACHE_NAME = 'faceguard-v1';
-const STATIC_ASSETS = ['/', '/index.html', '/manifest.json'];
+const STATIC_ASSETS = ['./', './index.html', './manifest.json'];
 
 // ── Install: pre-cache static shell ─────────────────────────────────────────
 self.addEventListener('install', (event) => {
@@ -47,9 +47,8 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ── Push: display notification from push event ───────────────────────────────
-// This handles Web Push API notifications (not ntfy — ntfy has its own handler)
 self.addEventListener('push', (event) => {
-  let data = { title: '🚨 FaceGuard Alert', body: 'Face detected!', icon: '/icons/icon-192.png' };
+  let data = { title: '🚨 FaceGuard Alert', body: 'Face detected!', icon: './icons/icon-192.png' };
 
   try {
     if (event.data) Object.assign(data, event.data.json());
@@ -60,8 +59,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon ?? '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: data.icon ?? './icons/icon-192.png',
+      badge: './icons/icon-192.png',
       tag: 'faceguard-alert',
       requireInteraction: true,
       vibrate: [200, 100, 200, 100, 400],
@@ -78,7 +77,7 @@ self.addEventListener('notificationclick', (event) => {
       .then((clientList) => {
         const existing = clientList.find((c) => c.url.includes(self.location.origin));
         if (existing) return existing.focus();
-        return clients.openWindow('/');
+        return clients.openWindow('./');
       }),
   );
 });
