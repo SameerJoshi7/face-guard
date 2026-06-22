@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#00ff41" />
+    <meta name="description" content="FaceGuard — AI-powered home security face detection. Detects faces in real-time and sends instant mobile alerts. No API key required." />
+
+    <title>FaceGuard | Home Security</title>
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+
+      <!-- ── Header ── -->
+      <header class="app-header" role="banner">
+        <div class="header-brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <circle cx="12" cy="11" r="3"/>
+              <path d="M12 8v-1M12 14v1M9.27 9.27l-.7-.7M15.43 15.43l-.7-.7M8 11H7M17 11h-1M9.27 12.73l-.7.7M15.43 6.57l-.7.7"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1 class="brand-name">FaceGuard</h1>
+            <span class="brand-tagline">Home Security System</span>
+          </div>
+        </div>
+        <div class="header-controls">
+          <div class="system-clock" id="system-clock" aria-live="polite" aria-label="Current time">00:00:00</div>
+          <button
+            id="arm-toggle"
+            class="arm-btn armed"
+            aria-pressed="true"
+            aria-label="Toggle armed state"
+          >
+            <span class="arm-btn__indicator" aria-hidden="true"></span>
+            <span class="arm-btn__label" id="arm-label">ARMED</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ── Main Layout ── -->
+      <main class="main-layout" role="main">
+
+        <!-- Camera Section -->
+        <section class="camera-section" aria-label="Camera feed">
+
+          <div class="camera-viewport" id="camera-viewport">
+            <!-- Loading State -->
+            <div class="camera-loading" id="camera-loading" aria-live="polite">
+              <div class="loading-spinner" aria-hidden="true"></div>
+              <p id="loading-text">Initializing AI model...</p>
+            </div>
+
+            <!-- Camera feed + overlay -->
+            <video
+              id="camera-feed"
+              autoplay
+              muted
+              playsinline
+              aria-label="Live camera feed"
+            ></video>
+            <canvas id="detection-overlay" aria-hidden="true"></canvas>
+
+            <!-- Live status badges -->
+            <div class="viewport-badges" aria-hidden="true">
+              <span class="badge badge--rec" id="rec-badge">● REC</span>
+              <span class="badge badge--status" id="status-badge">SCANNING</span>
+            </div>
+
+            <!-- Detection stats -->
+            <div class="viewport-stats" aria-live="polite" aria-label="Detection statistics">
+              <div class="stat">
+                <span class="stat__label">PERSONS</span>
+                <span class="stat__value" id="stat-faces">0</span>
+              </div>
+              <div class="stat">
+                <span class="stat__label">PROXIMITY</span>
+                <span class="stat__value" id="stat-proximity">—</span>
+              </div>
+              <div class="stat">
+                <span class="stat__label">CONFIDENCE</span>
+                <span class="stat__value" id="stat-confidence">—</span>
+              </div>
+            </div>
+
+            <!-- Alert flash overlay -->
+            <div class="alert-flash" id="alert-flash" aria-hidden="true"></div>
+          </div>
+
+          <!-- Camera Controls Bar -->
+          <div class="camera-controls" role="group" aria-label="Camera controls">
+            <div class="control-group">
+              <label class="control-label" for="camera-select">CAMERA</label>
+              <select id="camera-select" class="control-select" aria-label="Select camera">
+                <option value="">Loading cameras...</option>
+              </select>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="sensitivity-slider">
+                SENSITIVITY
+                <span class="control-value" id="sensitivity-value">Medium</span>
+              </label>
+              <input
+                id="sensitivity-slider"
+                type="range"
+                class="control-slider"
+                min="1"
+                max="3"
+                value="2"
+                step="1"
+                aria-label="Detection sensitivity"
+                aria-valuetext="Medium"
+              />
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="cooldown-slider">
+                ALERT COOLDOWN
+                <span class="control-value" id="cooldown-value">30s</span>
+              </label>
+              <input
+                id="cooldown-slider"
+                type="range"
+                class="control-slider"
+                min="5"
+                max="120"
+                value="30"
+                step="5"
+                aria-label="Alert cooldown in seconds"
+              />
+            </div>
+          </div>
+        </section>
+
+        <!-- Alerts Panel -->
+        <aside class="alerts-panel" aria-label="Alert log and notification settings">
+
+          <!-- Notification Setup -->
+          <div class="panel-section" id="notify-section">
+            <h2 class="panel-title">
+              <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              Mobile Alerts
+            </h2>
+
+            <div class="notify-info" id="notify-info">
+              <p>Install <strong>ntfy</strong> app on your phone, subscribe to your unique topic below.</p>
+              <a class="notify-link" href="https://ntfy.sh" target="_blank" rel="noopener">Get ntfy (iOS &amp; Android) →</a>
+            </div>
+
+            <!-- Identity card (shown after setup) -->
+            <div class="identity-card" id="identity-card" style="display:none">
+              <div class="identity-avatar" id="identity-avatar">S</div>
+              <div class="identity-info">
+                <div class="identity-name" id="identity-name">User</div>
+                <div class="identity-location" id="identity-location">Home</div>
+              </div>
+              <button id="btn-change-identity" class="icon-btn" title="Change identity" aria-label="Change identity">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="ntfy-channel">ntfy Topic (unique ID)</label>
+              <div class="input-row">
+                <input
+                  id="ntfy-channel"
+                  type="text"
+                  class="text-input"
+                  placeholder="e.g. faceguard-myhouse"
+                  maxlength="64"
+                  aria-label="ntfy notification topic"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button id="btn-copy-channel" class="icon-btn" title="Copy topic" aria-label="Copy topic to clipboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button id="btn-test-notify" class="action-btn action-btn--secondary" aria-label="Send test notification">
+                Test Notification
+              </button>
+              <button id="btn-browser-notify" class="action-btn action-btn--secondary" aria-label="Enable browser notifications">
+                Enable Browser Alerts
+              </button>
+            </div>
+          </div>
+
+          <!-- Alert Log -->
+          <div class="panel-section panel-section--flex">
+            <div class="panel-title-row">
+              <h2 class="panel-title">
+                <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M9 11l3 3L22 4"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                Alert Log
+              </h2>
+              <span class="alert-count-badge" id="alert-count">0 alerts</span>
+              <button id="btn-clear-log" class="text-btn" aria-label="Clear alert log">Clear</button>
+            </div>
+
+            <div class="alerts-log" id="alerts-log" role="log" aria-label="Security alerts" aria-live="polite">
+              <div class="empty-state" id="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 8v4M12 16h.01"/>
+                </svg>
+                <p>No alerts yet.</p>
+                <p class="empty-sub">System is monitoring...</p>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+      </main>
+
+      <!-- ── Toast Notification ── -->
+      <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <!-- ── Identity Setup Modal ── -->
+      <div id="setup-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-brand-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <circle cx="12" cy="11" r="3"/>
+              </svg>
+            </div>
+            <div>
+              <h2 id="modal-title" class="modal-title">Welcome to FaceGuard</h2>
+              <p class="modal-subtitle">Set up your unique security ID</p>
+            </div>
+          </div>
+
+          <p class="modal-desc">
+            Your personal details generate a <strong>unique private channel</strong> for alert notifications.
+            The same name + PIN always produces the same channel — even on a new device.
+          </p>
+
+          <form id="setup-form" class="setup-form" novalidate>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="setup-name">Your Name</label>
+                <input
+                  id="setup-name"
+                  type="text"
+                  class="form-input"
+                  placeholder="e.g. Sameer"
+                  maxlength="32"
+                  required
+                  autocomplete="name"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setup-location">Location Label</label>
+                <input
+                  id="setup-location"
+                  type="text"
+                  class="form-input"
+                  placeholder="e.g. Front Door"
+                  maxlength="32"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="setup-pin">
+                Personal PIN / Passphrase
+                <span class="form-hint">Min. 4 characters. Never shared or stored — only used locally to generate your ID.</span>
+              </label>
+              <div class="pin-row">
+                <input
+                  id="setup-pin"
+                  type="password"
+                  class="form-input"
+                  placeholder="e.g. 1234 or mysecret"
+                  minlength="4"
+                  maxlength="32"
+                  required
+                  autocomplete="new-password"
+                />
+                <button type="button" id="btn-toggle-pin" class="icon-btn" aria-label="Show/hide PIN">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Preview of generated topic -->
+            <div class="topic-preview" id="topic-preview" style="display:none">
+              <span class="topic-preview__label">Your channel ID</span>
+              <code class="topic-preview__value" id="topic-preview-value">fg-...</code>
+              <span class="topic-preview__hint">Subscribe to this in the ntfy app</span>
+            </div>
+
+            <div class="form-error" id="form-error" style="display:none"></div>
+
+            <button type="submit" id="btn-setup-submit" class="setup-submit-btn" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Activate FaceGuard
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
